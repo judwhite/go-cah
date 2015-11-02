@@ -37,6 +37,12 @@ If I'm ignoring you it's either because I'm busy or you're annoying. If you anno
 - http://www.cardsagainsthumanity.com/bcards1.txt
 - http://www.cardsagainsthumanity.com/bcards2.txt
 
+# Resources
+- [Twitch Chat OAuth Password Generator](http://www.twitchapps.com/tmi/)
+- [Whisper Rate Limiting](https://discuss.dev.twitch.tv/t/whisper-rate-limiting/2836)
+- [Twitch IRC](http://help.twitch.tv/customer/portal/articles/1302780-twitch-irc)
+- [IRC - RFC2812](https://tools.ietf.org/html/rfc2812)
+
 # Thanks
 
 Thanks to [Cards Against Humanity](http://www.cardsagainsthumanity.com/) for putting their work under the [Creative Commons license](https://creativecommons.org/licenses/by-nc-sa/2.0/). Here's your ego-fulfilling attribution. But seriously, thanks.
