@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"html"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -61,6 +62,7 @@ func getCardsFromWeb() (*cardBox, error) {
 	var questions []questionCard
 	var answers []answerCard
 	for _, c := range masterCards {
+		c.Text = html.UnescapeString(c.Text)
 		switch c.CardType {
 		case "Q":
 			questions = append(questions, questionCard{c.card})

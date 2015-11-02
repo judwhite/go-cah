@@ -1,33 +1,31 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 )
 
 type game struct {
-	opts                gameOptions
 	players             []player
 	round               int
 	roundStart          time.Time
 	gameStart           time.Time
 	answerDrawPile      []answerCard
-	questionDrawPile    []answerCard
-	answerDiscardPile   []questionCard
+	questionDrawPile    []questionCard
+	answerDiscardPile   []answerCard
 	questionDiscardPile []questionCard
 	messages            chan string
 	done                chan struct{}
 	started             bool
-}
-
-type gameOptions struct {
-	awesomePointsToWin int
-	minPlayers         int
-	gameStarter        string
-	cardBox            *cardBox
-	startTimeout       time.Duration
-	playerTimeout      time.Duration
-	czarTimeout        time.Duration
+	minStart            time.Duration
+	startTimeout        time.Duration
+	roundTimeout        time.Duration
+	czarTimeout         time.Duration
+	minPlayers          int
+	awesomePointsToWin  int
+	gameStarter         string
 }
 
 type player struct {
@@ -37,32 +35,72 @@ type player struct {
 	cards         []answerCard
 }
 
-func newGame(opts gameOptions) (*game, error) {
-	err := opts.validate()
+type round struct {
+	number   int
+	question questionCard
+	cards    map[string][]answerCard
+}
+
+func newGame(gameStarter string, awesomePoints int) (*game, error) {
+	if awesomePoints < 1 {
+		// TODO: notify irc
+		return nil, errors.New("need to play to at least 1 awesome point")
+	}
+
+	cardBox, err := getCardsFromWeb()
 	if err != nil {
 		return nil, err
 	}
 
 	game := game{
-		opts:      opts,
-		gameStart: time.Now(),
-		messages:  make(chan string, 4), // TODO: msgs chan buffered?
-		// TODO: answer/question draw pile randomization
+		gameStart:          time.Now(),
+		gameStarter:        gameStarter,
+		awesomePointsToWin: awesomePoints,
+		messages:           make(chan string, 4), // TODO: msgs chan buffered?
+		done:               make(chan struct{}),
+		minPlayers:         2, // for testing. make this 3 eventually.
+		minStart:           30 * time.Second,
+		startTimeout:       3 * time.Minute,
+		czarTimeout:        2 * time.Minute,
+		roundTimeout:       2 * time.Minute,
+		answerDrawPile:     shuffleAnswerCards(cardBox.answers),
+		questionDrawPile:   shuffleQuestionCards(cardBox.questions),
 	}
 
-	game.join(opts.gameStarter)
+	msg := fmt.Sprintf("New game has started to %d Awesome Points! Type !join to join", game.awesomePointsToWin)
+	game.sendMsg(msg)
+
+	// TODO: start timeout timer
+
+	game.join(gameStarter)
 
 	return &game, nil
 }
 
-func (o *gameOptions) validate() error {
-	if o.awesomePointsToWin <= 0 {
-		return fmt.Errorf("it's not a game without awesome points")
+func shuffleAnswerCards(cards []answerCard) []answerCard {
+	var shuffled []answerCard
+	for _, c := range cards {
+		shuffled = append(shuffled, c)
 	}
-	if o.minPlayers <= 2 {
-		return fmt.Errorf("need 3 players to have a game")
+	for i := 0; i < len(shuffled); i++ {
+		x := rand.Intn(len(shuffled))
+		shuffled[i], shuffled[x] = shuffled[x], shuffled[i]
 	}
-	return nil
+
+	return shuffled
+}
+
+func shuffleQuestionCards(cards []questionCard) []questionCard {
+	var shuffled []questionCard
+	for _, c := range cards {
+		shuffled = append(shuffled, c)
+	}
+	for i := 0; i < len(shuffled); i++ {
+		x := rand.Intn(len(shuffled))
+		shuffled[i], shuffled[x] = shuffled[x], shuffled[i]
+	}
+
+	return shuffled
 }
 
 func (g *game) sendMsg(msg string) {
@@ -95,10 +133,11 @@ func (g *game) join(nick string) {
 	g.players = append(g.players, newPlayer)
 
 	if !g.started { // TODO atomic.LoadInt32. concurrency, baby.
-		needed := g.opts.minPlayers - len(g.players) // TODO: y'know, concurrency. atomic.Add -1
+		needed := g.minPlayers - len(g.players) // TODO: y'know, concurrency. atomic.Add -1
 		if needed > 0 {
 			g.sendMsg(fmt.Sprintf("%s has joined the game! %d more players needed to start!", nick, needed))
 		} else if needed == 0 {
+			// TODO: wait minimum timeout to let people join
 			g.sendMsg(fmt.Sprintf("%s has joined the game! Let's start!", nick))
 			g.start()
 		} else {
@@ -111,6 +150,7 @@ func (g *game) join(nick string) {
 	// TODO: add to players
 }
 
-func (g *game) start() {
+func (g *game) start() error {
 	// TODO: start the game, start a round, all that jazz.
+	return nil
 }
