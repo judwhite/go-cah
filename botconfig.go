@@ -10,26 +10,29 @@ import (
 
 type botConfig struct {
 	nick           string
-	channel        string
+	channels       []string
 	serverPassword string
 }
 
 func parseArgs(args []string) (*botConfig, error) {
 	flagSet := &flag.FlagSet{}
 	nick := flagSet.String("nick", "", "bot's nick")
-	channel := flagSet.String("channel", "", "channel to join")
+	channels := StringArray{}
+	flagSet.Var(&channels, "channel", "channel to join (can be specified multiple times)")
 	err := flagSet.Parse(args)
 	if err != nil {
 		return nil, err
 	}
 
-	if *nick == "" || *channel == "" {
+	if *nick == "" || len(channels) == 0 {
 		flagSet.PrintDefaults()
 		return nil, errors.New("missing arguments")
 	}
 
-	if !strings.HasPrefix(*channel, "#") {
-		*channel = fmt.Sprintf("#%s", *channel)
+	for i := range channels {
+		if !strings.HasPrefix(channels[i], "#") {
+			channels[i] = fmt.Sprintf("#%s", channels[i])
+		}
 	}
 
 	serverPassword := os.Getenv("TWITCH_IRC_OAUTH")
@@ -39,7 +42,7 @@ func parseArgs(args []string) (*botConfig, error) {
 
 	return &botConfig{
 		nick:           *nick,
-		channel:        *channel,
+		channels:       channels,
 		serverPassword: serverPassword,
 	}, nil
 }

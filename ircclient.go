@@ -15,12 +15,13 @@ import (
 )
 
 type ircClient struct {
-	ServerAddress         string
-	WhisperServerAddress  string
-	Nick                  string
-	ServerPassword        string
-	InitialChannels       []string
-	PublicMessageReceiver chan ircMessage
+	ServerAddress        string
+	WhisperServerAddress string
+	Nick                 string
+	ServerPassword       string
+	PublicMessages       chan ircPRIVMSG
+	Joins                chan ircJOIN
+	Parts                chan ircPART
 
 	// mainConn handles public messages
 	conn         net.Conn
@@ -35,13 +36,25 @@ type ircClient struct {
 	connected int32
 }
 
-type ircMessage struct {
+type ircUserAction struct {
 	Raw     string
 	Channel string
 	Nick    string
-	Message string
 	User    string
 	Host    string
+}
+
+type ircPRIVMSG struct {
+	ircUserAction
+	Message string
+}
+
+type ircJOIN struct {
+	ircUserAction
+}
+
+type ircPART struct {
+	ircUserAction
 }
 
 func (i *ircClient) Connect() error {
@@ -70,13 +83,14 @@ func (i *ircClient) Connect() error {
 
 	i.startReader(i.whisperConn, i.whisperLineReceiver)
 
-	i.Password(i.ServerPassword)
-	i.ChangeNick(i.Nick)
-
-	for _, channel := range i.InitialChannels {
-		if err := i.Join(channel); err != nil {
-			return err
-		}
+	if err = i.Password(i.ServerPassword); err != nil {
+		return err
+	}
+	if err = i.ChangeNick(i.Nick); err != nil {
+		return err
+	}
+	if err = i.CAPREQ("twitch.tv", "membership"); err != nil {
+		return err
 	}
 
 	return nil
@@ -91,7 +105,7 @@ loop:
 			i.parseLine(line, i.conn)
 		case line := <-i.whisperLineReceiver:
 			log.Printf("(W) > %s\n", line)
-			i.tryParsePing(line, i.whisperConn)
+			i.tryParsePING(line, i.whisperConn)
 		case <-i.exit:
 			break loop
 		}
@@ -99,11 +113,13 @@ loop:
 }
 
 func (i *ircClient) parseLine(line string, sourceConn net.Conn) {
-	i.tryParsePrivMsg(line)
-	i.tryParsePing(line, sourceConn)
+	i.tryParsePRIVMSG(line)
+	i.tryParsePING(line, sourceConn)
+	i.tryParseJOIN(line)
+	i.tryParsePART(line)
 }
 
-func (i *ircClient) tryParsePing(line string, sourceConn net.Conn) {
+func (i *ircClient) tryParsePING(line string, sourceConn net.Conn) {
 	regex := regexp.MustCompile("^PING [:](?P<server>.+)$")
 	found := regex.FindAllStringSubmatch(line, -1)
 	if found == nil || len(found) != 1 || len(found[0]) != 2 {
@@ -114,8 +130,8 @@ func (i *ircClient) tryParsePing(line string, sourceConn net.Conn) {
 	i.Pong(server, sourceConn)
 }
 
-func (i *ircClient) tryParsePrivMsg(line string) {
-	if i.PublicMessageReceiver == nil {
+func (i *ircClient) tryParsePRIVMSG(line string) {
+	if i.PublicMessages == nil {
 		return
 	}
 	regex := regexp.MustCompile(`^[:](?P<nick>.+)[!](?P<user>.+)[@](?P<host>.+) PRIVMSG (?P<channel>[#]\S+) [:](?P<msg>.+)`)
@@ -124,16 +140,64 @@ func (i *ircClient) tryParsePrivMsg(line string) {
 		return
 	}
 
-	ircMsg := ircMessage{
-		Raw:     line,
-		Nick:    found[0][1],
-		User:    found[0][2],
-		Host:    found[0][3],
-		Channel: found[0][4],
+	ircMsg := ircPRIVMSG{
+		ircUserAction: ircUserAction{
+			Raw:     line,
+			Nick:    found[0][1],
+			User:    found[0][2],
+			Host:    found[0][3],
+			Channel: found[0][4],
+		},
 		Message: found[0][5],
 	}
 
-	i.PublicMessageReceiver <- ircMsg
+	i.PublicMessages <- ircMsg
+}
+
+func (i *ircClient) tryParseJOIN(line string) {
+	if i.Joins == nil {
+		return
+	}
+	regex := regexp.MustCompile(`^[:](?P<nick>.+)[!](?P<user>.+)[@](?P<host>.+) JOIN (?P<channel>[#]\S+)`)
+	found := regex.FindAllStringSubmatch(line, -1)
+	if found == nil || len(found) != 1 || len(found[0]) != 5 {
+		return
+	}
+
+	join := ircJOIN{
+		ircUserAction: ircUserAction{
+			Raw:     line,
+			Nick:    found[0][1],
+			User:    found[0][2],
+			Host:    found[0][3],
+			Channel: found[0][4],
+		},
+	}
+
+	i.Joins <- join
+}
+
+func (i *ircClient) tryParsePART(line string) {
+	if i.Parts == nil {
+		return
+	}
+	regex := regexp.MustCompile(`^[:](?P<nick>.+)[!](?P<user>.+)[@](?P<host>.+) PART (?P<channel>[#]\S+)`)
+	found := regex.FindAllStringSubmatch(line, -1)
+	if found == nil || len(found) != 1 || len(found[0]) != 5 {
+		return
+	}
+
+	part := ircPART{
+		ircUserAction: ircUserAction{
+			Raw:     line,
+			Nick:    found[0][1],
+			User:    found[0][2],
+			Host:    found[0][3],
+			Channel: found[0][4],
+		},
+	}
+
+	i.Parts <- part
 }
 
 func (i *ircClient) startReader(conn net.Conn, receiver chan string) {
@@ -152,6 +216,11 @@ func (i *ircClient) startReader(conn net.Conn, receiver chan string) {
 			receiver <- line
 		}
 	}()
+}
+
+func (i *ircClient) CAPREQ(server, capability string) error {
+	cmd := fmt.Sprintf("CAP REQ :%s/%s", server, capability)
+	return i.sendCommand(cmd, i.allServers)
 }
 
 func (i *ircClient) ChangeNick(nick string) error {
@@ -175,6 +244,7 @@ func (i *ircClient) Say(channel, message string) error {
 }
 
 func (i *ircClient) Whisper(channel, nick, message string) error {
+	time.Sleep(750 * time.Millisecond) // TODO: make this async
 	cmd := fmt.Sprintf("PRIVMSG %s :/w %s %s", channel, nick, message)
 	return i.sendCommand(cmd, i.whisperServer)
 }

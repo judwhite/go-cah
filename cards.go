@@ -63,10 +63,20 @@ func getCardsFromWeb() (*cardBox, error) {
 	var answers []answerCard
 	for _, c := range masterCards {
 		c.Text = html.UnescapeString(c.Text)
+		c.Text = strings.Replace(c.Text, "<br>", "", -1)
+		c.Text = strings.Replace(c.Text, "<b>", "", -1)
+		c.Text = strings.Replace(c.Text, "</b>", "", -1)
+		c.Text = strings.Replace(c.Text, "<i>", "", -1)
+		c.Text = strings.Replace(c.Text, "</i>", "", -1)
+		c.Text = strings.Replace(c.Text, "<u>", "", -1)
+		c.Text = strings.Replace(c.Text, "</u>", "", -1)
+		c.Text = strings.Replace(c.Text, "  ", " ", -1)
+
 		switch c.CardType {
 		case "Q":
 			questions = append(questions, questionCard{c.card})
 		case "A":
+			c.card.Text = strings.TrimRight(c.card.Text, ".")
 			answers = append(answers, answerCard{c.card})
 		}
 	}
