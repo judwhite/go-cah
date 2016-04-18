@@ -1,12 +1,16 @@
 # go-cah
 Cards Against Humanity IRC/Twitch Bot
 
-# Watch it Live (maybe)
+## Project Status
+
+- Personal toy project, don't expect great things.
+
+## Watch it Live (~~maybe~~ definitely not)
 http://www.twitch.tv/judwhite
 
 Weekend project. I don't have a set schedule. Tough.
 
-# What's in it for me?
+## What's in it for me?
 - Learn to download text files from the web, convert them into something useful.
 - Basic turn-play mechanics, which will be necessary for that killer MMORPG you're working on.
 - Networking and IRC protocol.
@@ -15,7 +19,7 @@ Weekend project. I don't have a set schedule. Tough.
 - Maybe I'll implement your ~~dumb~~ awesome idea.
 - Eventually play the game on Twitch with each other.
 
-# Game Rules
+## Game Rules
 - Everyone gets 10 white cards with answers on them.
 - Someone is elected Card Czar for the first round.
 - The Card Czar reads the question or fill-in-the-blank phrase on a Black card.
@@ -27,22 +31,22 @@ Weekend project. I don't have a set schedule. Tough.
 
 https://s3.amazonaws.com/cah/CAH_Rules.pdf
 
-# Code of Conduct
+## Code of Conduct
 If I'm ignoring you it's either because I'm busy or you're annoying. If you annoy me (or others) you get to sit outside. Save your twisted mind for the game, this is meant to be fun for everyone.
 
-# Cards
+## Cards
 - https://raw.githubusercontent.com/samurailink3/hangouts-against-humanity/master/source/data/cards.js
 - http://www.cardsagainsthumanity.com/wcards.txt
 - http://www.cardsagainsthumanity.com/bcards.txt
 - http://www.cardsagainsthumanity.com/bcards1.txt
 - http://www.cardsagainsthumanity.com/bcards2.txt
 
-# Resources
+## Resources
 - [Twitch Chat OAuth Password Generator](http://www.twitchapps.com/tmi/)
 - [Whisper Rate Limiting](https://discuss.dev.twitch.tv/t/whisper-rate-limiting/2836)
 - [Twitch IRC](http://help.twitch.tv/customer/portal/articles/1302780-twitch-irc)
 - [IRC - RFC2812](https://tools.ietf.org/html/rfc2812)
 
-# Thanks
+## Thanks
 
 Thanks to [Cards Against Humanity](http://www.cardsagainsthumanity.com/) for putting their work under the [Creative Commons license](https://creativecommons.org/licenses/by-nc-sa/2.0/). Here's your ego-fulfilling attribution. But seriously, thanks.
